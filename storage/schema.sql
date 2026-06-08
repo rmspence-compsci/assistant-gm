@@ -31,3 +31,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     fetched_at REAL NOT NULL,
     PRIMARY KEY (league_id, week)
 );
+
+CREATE TABLE IF NOT EXISTS league_users (
+    league_id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    fetched_at REAL NOT NULL
+);

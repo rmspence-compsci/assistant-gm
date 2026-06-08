@@ -6,7 +6,14 @@ load_dotenv()
 
 _ROOT = Path(__file__).parent.parent
 
-ANTHROPIC_API_KEY: str = os.environ["ANTHROPIC_API_KEY"]
+try:
+    import streamlit as st
+    _key = st.secrets.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+except Exception:
+    _key = os.environ.get("ANTHROPIC_API_KEY", "")
+if not _key:
+    raise KeyError("ANTHROPIC_API_KEY")
+ANTHROPIC_API_KEY: str = _key
 ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
 CACHE_TTL_SECONDS: int = 3600
 PLAYER_CACHE_TTL_SECONDS: int = 604800

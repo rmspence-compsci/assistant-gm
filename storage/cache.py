@@ -92,6 +92,22 @@ def upsert_players(players: dict) -> None:
         )
 
 
+def get_league_users(league_id: str) -> list[dict] | None:
+    with _conn() as conn:
+        row = conn.execute("SELECT data, fetched_at FROM league_users WHERE league_id = ?", (league_id,)).fetchone()
+    if not row or _is_stale(row["fetched_at"], settings.CACHE_TTL_SECONDS):
+        return None
+    return json.loads(row["data"])
+
+
+def upsert_league_users(league_id: str, users: list[dict]) -> None:
+    with _conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO league_users (league_id, data, fetched_at) VALUES (?, ?, ?)",
+            (league_id, json.dumps(users), time.time()),
+        )
+
+
 def get_transactions(league_id: str, week: int) -> list | None:
     with _conn() as conn:
         row = conn.execute(
@@ -125,6 +141,9 @@ def refresh_league(league_id: str, force: bool = False) -> None:
 
     if force or get_players() is None:
         upsert_players(sleeper_client.get_all_players())
+
+    if force or get_league_users(league_id) is None:
+        upsert_league_users(league_id, sleeper_client.get_league_users(league_id))
 
 
 def _get_current_week(league_id: str) -> int:

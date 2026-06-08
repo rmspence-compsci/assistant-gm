@@ -87,8 +87,16 @@ def get_transactions(league_id: str, week: int) -> list:
     ]
 
 
-def get_league_users(league_id: str) -> list:
-    return _get(f"/league/{league_id}/users")
+def get_league_users(league_id: str) -> list[dict]:
+    data = _get(f"/league/{league_id}/users") or []
+    return [
+        {
+            "user_id": d["user_id"],
+            "username": d.get("display_name") or d.get("username", ""),
+            "team_name": (d.get("metadata") or {}).get("team_name"),
+        }
+        for d in data
+    ]
 
 
 def get_all_players() -> dict:
