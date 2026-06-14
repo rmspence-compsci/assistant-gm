@@ -19,5 +19,10 @@ CACHE_TTL_SECONDS: int = 3600
 PLAYER_CACHE_TTL_SECONDS: int = 604800
 NFL_SEASON: str = "2025"
 FINETUNE_LOG_PATH: Path = _ROOT / "data" / "finetune" / "qa_log.jsonl"
-SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
-SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "")
+try:
+    import streamlit as st
+    SUPABASE_URL: str = st.secrets.get("SUPABASE_URL") or os.environ.get("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY: str = st.secrets.get("SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_ANON_KEY", "")
+except Exception:
+    SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY", "")
