@@ -23,11 +23,13 @@ def test_classify_general():
     assert classify_question("Tell me about my team") == QuestionType.GENERAL
 
 
+@patch("storage.cache.get_league_users", return_value=None)
+@patch("storage.cache.get_matchups", return_value=None)
 @patch("storage.cache.get_transactions", return_value=None)
 @patch("storage.cache.get_players", return_value=None)
 @patch("storage.cache.get_rosters")
 @patch("storage.cache.get_league")
-def test_retrieve_context_standings(mock_get_league, mock_get_rosters, mock_get_players, mock_get_transactions):
+def test_retrieve_context_standings(mock_get_league, mock_get_rosters, mock_get_players, mock_get_transactions, mock_get_matchups, mock_get_league_users):
     mock_get_league.return_value = League(
         league_id="lg1", name="Test", season="2025",
         total_rosters=12, scoring_settings={}, settings={"leg": 10},
@@ -43,6 +45,6 @@ def test_retrieve_context_standings(mock_get_league, mock_get_rosters, mock_get_
 
     assert "league" in result
     assert "user_roster" in result
-    standings = result.get("standings")
-    assert standings is not None
-    assert standings[0].wins == 8
+    all_rosters = result.get("all_rosters")
+    assert all_rosters is not None
+    assert all_rosters[0].wins == 8

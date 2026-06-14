@@ -18,5 +18,6 @@ ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
 CACHE_TTL_SECONDS: int = 3600
 PLAYER_CACHE_TTL_SECONDS: int = 604800
 NFL_SEASON: str = "2025"
-DB_PATH: Path = _ROOT / "data" / "league_cache.db"
 FINETUNE_LOG_PATH: Path = _ROOT / "data" / "finetune" / "qa_log.jsonl"
+SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
+SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "")

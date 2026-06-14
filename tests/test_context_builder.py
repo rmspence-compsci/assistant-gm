@@ -55,7 +55,7 @@ def test_build_context_standings():
         Roster(roster_id=2, owner_id="u2", league_id="lg1", players=[], starters=[],
                wins=6, losses=4, ties=0, points_for=1200.0, points_against=1100.0),
     ]
-    data = {"standings": rosters}
+    data = {"all_rosters": rosters}
     result = build_context(data)
     assert "STANDINGS" in result
     assert "8-2" in result

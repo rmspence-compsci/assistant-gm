@@ -7,3 +7,5 @@ __pycache__/
 *.egg-info/
 .venv/
 .DS_Store
+.claude/
+.agents/

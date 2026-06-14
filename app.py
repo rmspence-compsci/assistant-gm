@@ -6,6 +6,10 @@ from rag.retriever import retrieve_context
 from rag.context_builder import build_context
 from llm.client import ask_stream
 from storage.finetune_log import log_qa
+from storage.query_log import log_query
+from storage import user_profile
+from auth import session as auth_session
+from auth import ui as auth_ui
 from ui.components import (
     render_username_input,
     render_league_selector,
@@ -15,6 +19,14 @@ from ui.components import (
 
 st.set_page_config(page_title="Assistant GM", page_icon="🏈", layout="wide")
 cache.init_db()
+
+# --- Auth gate ---
+supabase_session = auth_session.get_session()
+if not supabase_session:
+    auth_ui.render()
+    st.stop()
+
+current_user = supabase_session.user
 
 for key, default in {
     "username": None,
@@ -26,6 +38,19 @@ for key, default in {
 }.items():
     if key not in st.session_state:
         st.session_state[key] = default
+
+# --- Auto-load Sleeper username from saved profile ---
+if st.session_state.username is None:
+    profile = user_profile.get_profile(current_user.id)
+    if profile and profile.get("sleeper_username"):
+        saved_username = profile["sleeper_username"]
+        try:
+            user = sleeper_client.get_user(saved_username)
+            st.session_state.username = saved_username
+            st.session_state.user_id = user.user_id
+            st.session_state.leagues = sleeper_client.get_user_leagues(user.user_id, settings.NFL_SEASON)
+        except Exception:
+            pass  # Username may be stale; user will re-enter manually
 
 with st.sidebar:
     st.title("🏈 Assistant GM")
@@ -45,6 +70,7 @@ with st.sidebar:
                 st.session_state.selected_league = None
                 st.session_state.roster_id = None
                 st.session_state.messages = []
+                user_profile.upsert_profile(current_user.id, username)
             except Exception as e:
                 st.error(f"Could not load user '{username}': {e}")
 
@@ -79,6 +105,12 @@ with st.sidebar:
                     cache.refresh_league(st.session_state.selected_league.league_id, force=True)
                 st.success("Data refreshed!")
 
+    st.divider()
+    if st.button("Log Out", use_container_width=True):
+        auth_session.sign_out()
+        st.session_state.clear()
+        st.rerun()
+
 st.title("Ask Your Assistant GM")
 st.caption("⚠️ AI-generated advice. Always use your own judgment before making lineup or trade decisions.")
 
@@ -104,3 +136,10 @@ if prompt := st.chat_input("Ask anything about your league..."):
 
         st.session_state.messages.append({"role": "assistant", "content": response_text})
         log_qa(prompt, context_str, response_text)
+        log_query(
+            user_id=current_user.id,
+            league_id=st.session_state.selected_league.league_id,
+            league_name=st.session_state.selected_league.name,
+            question=prompt,
+            answer=response_text,
+        )

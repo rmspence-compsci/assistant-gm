@@ -62,7 +62,5 @@ def test_settings_has_path_constants(monkeypatch):
     import config.settings as s
     importlib.reload(s)
     from pathlib import Path
-    assert isinstance(s.DB_PATH, Path)
     assert isinstance(s.FINETUNE_LOG_PATH, Path)
-    assert s.DB_PATH.name == "league_cache.db"
     assert s.FINETUNE_LOG_PATH.name == "qa_log.jsonl"
