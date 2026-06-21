@@ -1,6 +1,8 @@
 import logging
 from datetime import datetime, timezone
 
+import pandas as pd
+
 from valuation.crosswalk import load_crosswalk, build_fantasypros_index, build_gsis_index, fuzzy_lookup
 from valuation.age_decay import compute_decay
 from valuation.blend import blend_player, blend_pick
@@ -25,6 +27,7 @@ def run_pipeline(formats: list = None) -> None:
     crosswalk_df = load_crosswalk()
     fp_index = build_fantasypros_index(crosswalk_df)     # {fp_id: sleeper_id}
     gsis_index = build_gsis_index(crosswalk_df)          # {gsis_id: sleeper_id}
+    sleeper_to_gsis = {str(row["sleeper_id"]): str(row["gsis_id"]) for _, row in crosswalk_df.iterrows() if pd.notna(row.get("gsis_id"))}
 
     logger.info("Fetching DynastyProcess values...")
     dp_players = fetch_player_values()
@@ -74,10 +77,9 @@ def run_pipeline(formats: list = None) -> None:
             ffc_key = f"{dp_data.get('player_name', '')}_{pos}"
             adp_val = ffc_norm.get(ffc_key, 0.0)
 
-            # Momentum: GSIS ID lookup via crosswalk row
-            row = crosswalk_df[crosswalk_df["sleeper_id"] == str(sleeper_id)]
-            gsis_id = row.iloc[0]["gsis_id"] if not row.empty else None
-            mom_val = momentum_norm.get(str(gsis_id), 0.0) if gsis_id and str(gsis_id) != "nan" else 0.0
+            # Momentum: O(1) GSIS ID lookup via inverted index
+            gsis_id = sleeper_to_gsis.get(str(sleeper_id))
+            mom_val = momentum_norm.get(gsis_id, 0.0) if gsis_id else 0.0
 
             trend_val = trending_norm.get(str(sleeper_id), 0.0)
 

@@ -147,5 +147,6 @@ if prompt := st.chat_input("Ask anything about your league..."):
 st.markdown(
     "---\n"
     "*Player stats powered by [nflverse](https://github.com/nflverse) (CC BY 4.0). "
-    "ADP data courtesy of [Fantasy Football Calculator](https://fantasyfootballcalculator.com).*"
+    "ADP data courtesy of [Fantasy Football Calculator](https://fantasyfootballcalculator.com). "
+    "Dynasty trade values incorporate data from [DynastyProcess](https://github.com/dynastyprocess/data) (GPL-3.0).*"
 )

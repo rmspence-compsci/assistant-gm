@@ -59,3 +59,43 @@ def test_build_context_standings():
     result = build_context(data)
     assert "STANDINGS" in result
     assert "8-2" in result
+
+
+def test_build_context_renders_dynasty_trade_values_for_trade_question():
+    from valuation.models import PlayerValue
+
+    pv = PlayerValue(
+        player_id="4046", format="1QB", value=8500,
+        breakdown={}, computed_at="2025-10-01T00:00:00+00:00"
+    )
+    data = {
+        "player_values": {"4046": pv},
+        "valuation_format": "1QB",
+        "players": {},  # no player name lookup, falls back to player_id
+    }
+    result = build_context(data)
+    assert "DYNASTY TRADE VALUES (1QB" in result
+    assert "8500" in result
+
+
+def test_build_context_caps_valuation_at_30_players():
+    from valuation.models import PlayerValue
+
+    player_values = {
+        str(i): PlayerValue(
+            player_id=str(i), format="1QB", value=i * 100,
+            breakdown={}, computed_at="2025-10-01T00:00:00+00:00"
+        )
+        for i in range(1, 51)  # 50 players
+    }
+    data = {"player_values": player_values, "valuation_format": "1QB", "players": {}}
+    result = build_context(data)
+    # Count how many player lines appear (lines starting with "  ")
+    value_lines = [line for line in result.split("\n") if line.startswith("  ") and ":" in line]
+    assert len(value_lines) <= 30
+
+
+def test_build_context_omits_valuation_section_when_no_player_values():
+    data = {}  # no player_values key
+    result = build_context(data)
+    assert "DYNASTY TRADE VALUES" not in result

@@ -19,13 +19,11 @@ def load_crosswalk() -> pd.DataFrame:
 
 
 def build_fantasypros_index(df: pd.DataFrame) -> dict:
-    """Returns {fantasypros_id: sleeper_id} (both as strings)."""
-    mask = df["sleeper_id"].notna() & df["fantasypros_id"].notna()
-    sub = df[mask].copy()
-    return {
-        str(int(float(fp))): str(int(float(sl)))
-        for fp, sl in zip(sub["fantasypros_id"], sub["sleeper_id"])
-    }
+    """Returns {fantasypros_id: sleeper_id}."""
+    sub = df[df["sleeper_id"].notna() & df["fantasypros_id"].notna()].copy()
+    sub["fp_numeric"] = pd.to_numeric(sub["fantasypros_id"], errors="coerce")
+    sub = sub[sub["fp_numeric"].notna()]
+    return {str(int(row["fp_numeric"])): str(row["sleeper_id"]) for _, row in sub.iterrows()}
 
 
 def build_gsis_index(df: pd.DataFrame) -> dict:
