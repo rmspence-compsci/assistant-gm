@@ -1,5 +1,6 @@
 from enum import Enum
 from storage import cache
+from storage.valuation_store import get_player_values_for_ids
 
 
 class QuestionType(Enum):
@@ -16,6 +17,12 @@ _KEYWORDS = {
     QuestionType.WAIVER: ["waiver", "pickup", "pick up", "add", "free agent", "available"],
     QuestionType.STANDINGS: ["standing", "rank", "place", "lead", "behind", "ahead", "record", "playoff"],
 }
+
+
+def _infer_format(league) -> str:
+    """Returns '2QB' if league has a SuperFlex slot, else '1QB'."""
+    positions = league.settings.get("roster_positions", []) if league else []
+    return "2QB" if "SF" in positions else "1QB"
 
 
 def classify_question(question: str) -> QuestionType:
@@ -75,6 +82,14 @@ def retrieve_context(question: str, league_id: str, user_roster_id: int) -> dict
                 pid: p for pid, p in players.items()
                 if pid not in owned_ids and p.position in ("QB", "RB", "WR", "TE")
             }
+
+        if qtype == QuestionType.TRADE:
+            all_player_ids = list({pid for r in rosters for pid in (r.players or [])})
+            fmt = _infer_format(league)
+            player_values = get_player_values_for_ids(all_player_ids, fmt)
+            if player_values:
+                data["player_values"] = player_values
+                data["valuation_format"] = fmt
 
     current_week = int(league.settings.get("leg", 1)) if league else 1
     transactions = cache.get_transactions(league_id, current_week)
