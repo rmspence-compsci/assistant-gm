@@ -143,3 +143,9 @@ if prompt := st.chat_input("Ask anything about your league..."):
             question=prompt,
             answer=response_text,
         )
+
+st.markdown(
+    "---\n"
+    "*Player stats powered by [nflverse](https://github.com/nflverse) (CC BY 4.0). "
+    "ADP data courtesy of [Fantasy Football Calculator](https://fantasyfootballcalculator.com).*"
+)
