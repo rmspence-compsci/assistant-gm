@@ -149,3 +149,31 @@ def test_run_pipeline_produces_fantasycalc_value_for_known_player():
     assert mahomes is not None
     assert mahomes.value == 9000
     assert mahomes.overall_rank == 1
+
+
+def test_run_pipeline_continues_to_fantasycalc_when_dp_section_fails():
+    with _run_with_mocks()() as (mock_upsert_players, _, mock_upsert_fantasycalc):
+        with patch("valuation.pipeline.load_crosswalk", side_effect=Exception("crosswalk fetch failed")):
+            from valuation.pipeline import run_pipeline
+            run_pipeline(formats=["1QB"])
+    mock_upsert_players.assert_not_called()
+    mock_upsert_fantasycalc.assert_called_once()
+
+
+def test_run_pipeline_continues_dp_blend_when_fantasycalc_fails():
+    with _run_with_mocks()() as (mock_upsert_players, _, mock_upsert_fantasycalc):
+        with patch("valuation.pipeline.fetch_fantasycalc_values", side_effect=Exception("FantasyCalc API down")):
+            from valuation.pipeline import run_pipeline
+            run_pipeline(formats=["1QB"])
+    mock_upsert_players.assert_called_once()
+    mock_upsert_fantasycalc.assert_not_called()
+
+
+def test_run_pipeline_continues_fantasycalc_when_momentum_fetch_fails():
+    with _run_with_mocks()() as (mock_upsert_players, _, mock_upsert_fantasycalc):
+        with patch("valuation.pipeline.fetch_weekly_data", side_effect=Exception("HTTP 404")):
+            from valuation.pipeline import run_pipeline
+            run_pipeline(formats=["1QB"])
+    # DP blend should still complete (momentum degrades to 0 rather than aborting)
+    mock_upsert_players.assert_called_once()
+    mock_upsert_fantasycalc.assert_called_once()

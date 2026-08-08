@@ -18,13 +18,10 @@ from config.settings import NFL_SEASON, PIPELINE_FORMATS
 logger = logging.getLogger(__name__)
 
 
-def run_pipeline(formats: list = None) -> None:
-    """Run the full valuation pipeline for all specified formats."""
-    if formats is None:
-        formats = PIPELINE_FORMATS
-
-    computed_at = datetime.now(timezone.utc).isoformat()
-
+def _run_dynastyprocess_blend(formats: list, computed_at: str) -> None:
+    """Fetches DynastyProcess + signal sources and upserts the blended Tier 1 values.
+    Raises on failure — callers should treat this section as a unit that may fail
+    without blocking independent sources (e.g. FantasyCalc) later in the pipeline."""
     logger.info("Loading ID crosswalk...")
     crosswalk_df = load_crosswalk()
     fp_index = build_fantasypros_index(crosswalk_df)     # {fp_id: sleeper_id}
@@ -40,9 +37,13 @@ def run_pipeline(formats: list = None) -> None:
     ffc_norm = normalize_adp(ffc_raw)                    # {"Name_POS": 0-10000}
 
     logger.info("Fetching nfl_data_py momentum...")
-    weekly_df = fetch_weekly_data(int(NFL_SEASON))
-    momentum_raw = compute_momentum(weekly_df)
-    momentum_norm = normalize_momentum(momentum_raw)     # {gsis_id: 0-10000}
+    try:
+        weekly_df = fetch_weekly_data(int(NFL_SEASON))
+        momentum_raw = compute_momentum(weekly_df)
+        momentum_norm = normalize_momentum(momentum_raw)     # {gsis_id: 0-10000}
+    except Exception as e:
+        logger.warning(f"nfl_data_py momentum fetch failed ({e}); continuing with momentum=0 for all players.")
+        momentum_norm = {}
 
     logger.info("Fetching Sleeper trending...")
     trending_raw = fetch_trending()
@@ -114,6 +115,9 @@ def run_pipeline(formats: list = None) -> None:
         upsert_pick_values(pick_values)
         logger.info(f"Upserted {len(pick_values)} pick values for {fmt}.")
 
+
+def _run_fantasycalc(formats: list, computed_at: str) -> None:
+    """Independent of the DynastyProcess blend — joins directly on sleeper_id, no crosswalk needed."""
     for fmt in formats:
         num_qbs = 1 if fmt == "1QB" else 2
         logger.info(f"Fetching FantasyCalc values ({fmt})...")
@@ -125,3 +129,26 @@ def run_pipeline(formats: list = None) -> None:
         ]
         upsert_fantasycalc_values(fc_values)
         logger.info(f"Upserted {len(fc_values)} FantasyCalc values for {fmt}.")
+
+
+def run_pipeline(formats: list = None) -> None:
+    """Run the full valuation pipeline for all specified formats.
+
+    The DynastyProcess blend and the FantasyCalc fetch are independent sources —
+    a failure in one (e.g. a stale/unavailable upstream nfl_data_py season file)
+    must not prevent the other from running and upserting its data.
+    """
+    if formats is None:
+        formats = PIPELINE_FORMATS
+
+    computed_at = datetime.now(timezone.utc).isoformat()
+
+    try:
+        _run_dynastyprocess_blend(formats, computed_at)
+    except Exception as e:
+        logger.error(f"DynastyProcess valuation blend failed: {e}", exc_info=True)
+
+    try:
+        _run_fantasycalc(formats, computed_at)
+    except Exception as e:
+        logger.error(f"FantasyCalc valuation fetch failed: {e}", exc_info=True)
