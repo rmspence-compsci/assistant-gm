@@ -21,9 +21,11 @@ NFL_SEASON: str = "2025"
 FINETUNE_LOG_PATH: Path = _ROOT / "data" / "finetune" / "qa_log.jsonl"
 SUPABASE_URL: str = os.environ.get("SUPABASE_URL", "")
 SUPABASE_ANON_KEY: str = os.environ.get("SUPABASE_ANON_KEY", "")
+SUPABASE_SERVICE_ROLE_KEY: str = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
 # Valuation pipeline
 DP_BASE_URL = "https://raw.githubusercontent.com/dynastyprocess/data/master/files"
 FFC_ADP_URL = "https://fantasyfootballcalculator.com/api/v1/adp/dynasty"
 SLEEPER_TRENDING_URL = "https://api.sleeper.app/v1/players/nfl/trending/add"
+FANTASYCALC_URL = "https://api.fantasycalc.com/values/current"
 PIPELINE_FORMATS = ["1QB", "2QB"]

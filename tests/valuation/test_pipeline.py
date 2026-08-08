@@ -31,6 +31,9 @@ _DEFAULT_MOCKS = {
     "valuation.pipeline.normalize_trending": {"return_value": {}},
     "valuation.pipeline.upsert_player_values": {},
     "valuation.pipeline.upsert_pick_values": {},
+    "valuation.pipeline.fetch_fantasycalc_values": {"return_value": []},
+    "valuation.pipeline.normalize_fantasycalc_values": {"return_value": {}},
+    "valuation.pipeline.upsert_fantasycalc_values": {},
 }
 
 
@@ -69,14 +72,20 @@ def _run_with_mocks(extra_overrides=None):
             )),
             patch("valuation.pipeline.upsert_player_values") as mock_upsert_players,
             patch("valuation.pipeline.upsert_pick_values") as mock_upsert_picks,
+            patch("valuation.pipeline.fetch_fantasycalc_values", return_value=[]),
+            patch("valuation.pipeline.normalize_fantasycalc_values", return_value={
+                "4046": {"value": 9000, "redraft_value": 8500, "overall_rank": 1,
+                         "position_rank": 1, "trend_30day": 100},
+            }),
+            patch("valuation.pipeline.upsert_fantasycalc_values") as mock_upsert_fantasycalc,
         ):
-            yield mock_upsert_players, mock_upsert_picks
+            yield mock_upsert_players, mock_upsert_picks, mock_upsert_fantasycalc
 
     return multi_patch
 
 
 def test_run_pipeline_calls_upsert_for_each_format():
-    with _run_with_mocks()() as (mock_upsert_players, mock_upsert_picks):
+    with _run_with_mocks()() as (mock_upsert_players, mock_upsert_picks, _):
         from valuation.pipeline import run_pipeline
         run_pipeline(formats=["1QB", "2QB"])
     # Called once per format
@@ -89,7 +98,7 @@ def test_run_pipeline_produces_player_value_for_known_player():
     def capture(values):
         captured.extend(values)
 
-    with _run_with_mocks()() as (mock_upsert_players, _):
+    with _run_with_mocks()() as (mock_upsert_players, _, _):
         mock_upsert_players.side_effect = capture
         from valuation.pipeline import run_pipeline
         run_pipeline(formats=["1QB"])
@@ -100,10 +109,43 @@ def test_run_pipeline_produces_player_value_for_known_player():
 
 
 def test_run_pipeline_skips_format_when_weights_missing():
-    with _run_with_mocks()() as (mock_upsert_players, _):
+    with _run_with_mocks()() as (mock_upsert_players, _, _):
         # Override get_weights to return None (no weights configured)
         with patch("valuation.pipeline.get_weights", return_value=None):
             from valuation.pipeline import run_pipeline
             run_pipeline(formats=["1QB"])
     # Should not upsert anything if weights are missing
     mock_upsert_players.assert_not_called()
+
+
+def test_run_pipeline_calls_fantasycalc_upsert_for_each_format():
+    with _run_with_mocks()() as (_, _, mock_upsert_fantasycalc):
+        from valuation.pipeline import run_pipeline
+        run_pipeline(formats=["1QB", "2QB"])
+    assert mock_upsert_fantasycalc.call_count == 2
+
+
+def test_run_pipeline_fantasycalc_runs_even_when_weights_missing():
+    with _run_with_mocks()() as (mock_upsert_players, _, mock_upsert_fantasycalc):
+        with patch("valuation.pipeline.get_weights", return_value=None):
+            from valuation.pipeline import run_pipeline
+            run_pipeline(formats=["1QB"])
+    mock_upsert_players.assert_not_called()
+    mock_upsert_fantasycalc.assert_called_once()
+
+
+def test_run_pipeline_produces_fantasycalc_value_for_known_player():
+    captured = []
+
+    def capture(values):
+        captured.extend(values)
+
+    with _run_with_mocks()() as (_, _, mock_upsert_fantasycalc):
+        mock_upsert_fantasycalc.side_effect = capture
+        from valuation.pipeline import run_pipeline
+        run_pipeline(formats=["1QB"])
+
+    mahomes = next((v for v in captured if v.player_id == "4046" and v.format == "1QB"), None)
+    assert mahomes is not None
+    assert mahomes.value == 9000
+    assert mahomes.overall_rank == 1

@@ -99,3 +99,46 @@ def test_build_context_omits_valuation_section_when_no_player_values():
     data = {}  # no player_values key
     result = build_context(data)
     assert "DYNASTY TRADE VALUES" not in result
+
+
+def test_build_context_renders_fantasycalc_market_consensus_for_trade_question():
+    from valuation.models import FantasyCalcValue
+
+    fv = FantasyCalcValue(
+        player_id="4046", format="1QB", value=9500, redraft_value=9000,
+        overall_rank=3, position_rank=1, trend_30day=250,
+        computed_at="2025-10-01T00:00:00+00:00",
+    )
+    data = {
+        "fantasycalc_values": {"4046": fv},
+        "valuation_format": "1QB",
+        "players": {},  # no player name lookup, falls back to player_id
+    }
+    result = build_context(data)
+    assert "MARKET CONSENSUS (FantasyCalc, 1QB" in result
+    assert "9500" in result
+    assert "rank #3" in result
+    assert "trend +250/30d" in result
+
+
+def test_build_context_caps_fantasycalc_at_30_players():
+    from valuation.models import FantasyCalcValue
+
+    fantasycalc_values = {
+        str(i): FantasyCalcValue(
+            player_id=str(i), format="1QB", value=i * 100, redraft_value=i * 90,
+            overall_rank=i, position_rank=i, trend_30day=0,
+            computed_at="2025-10-01T00:00:00+00:00",
+        )
+        for i in range(1, 51)  # 50 players
+    }
+    data = {"fantasycalc_values": fantasycalc_values, "valuation_format": "1QB", "players": {}}
+    result = build_context(data)
+    value_lines = [line for line in result.split("\n") if line.startswith("  ") and ":" in line]
+    assert len(value_lines) <= 30
+
+
+def test_build_context_omits_fantasycalc_section_when_absent():
+    data = {}  # no fantasycalc_values key
+    result = build_context(data)
+    assert "MARKET CONSENSUS" not in result

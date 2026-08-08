@@ -26,3 +26,15 @@ class ValuationWeights:
     age_factor: float
     momentum: float
     trending: float
+
+
+@dataclass
+class FantasyCalcValue:
+    player_id: str
+    format: str
+    value: int
+    redraft_value: int
+    overall_rank: int
+    position_rank: int
+    trend_30day: int
+    computed_at: str

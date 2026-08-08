@@ -1,6 +1,6 @@
 from enum import Enum
 from storage import cache
-from storage.valuation_store import get_player_values_for_ids
+from storage.valuation_store import get_player_values_for_ids, get_fantasycalc_values_for_ids
 
 
 class QuestionType(Enum):
@@ -90,6 +90,10 @@ def retrieve_context(question: str, league_id: str, user_roster_id: int) -> dict
             if player_values:
                 data["player_values"] = player_values
                 data["valuation_format"] = fmt
+
+            fantasycalc_values = get_fantasycalc_values_for_ids(all_player_ids, fmt)
+            if fantasycalc_values:
+                data["fantasycalc_values"] = fantasycalc_values
 
     current_week = int(league.settings.get("leg", 1)) if league else 1
     transactions = cache.get_transactions(league_id, current_week)

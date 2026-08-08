@@ -6,11 +6,13 @@ import pandas as pd
 from valuation.crosswalk import load_crosswalk, build_fantasypros_index, build_gsis_index, fuzzy_lookup
 from valuation.age_decay import compute_decay
 from valuation.blend import blend_player, blend_pick
+from valuation.models import FantasyCalcValue
 from valuation.sources.dynasty_process import fetch_player_values, fetch_pick_values
 from valuation.sources.ffc_adp import fetch_adp, normalize_adp
 from valuation.sources.nfl_data import fetch_weekly_data, compute_momentum, normalize_momentum
 from valuation.sources.sleeper_trending import fetch_trending, normalize_trending
-from storage.valuation_store import get_weights, upsert_player_values, upsert_pick_values
+from valuation.sources.fantasycalc import fetch_values as fetch_fantasycalc_values, normalize_values as normalize_fantasycalc_values
+from storage.valuation_store import get_weights, upsert_player_values, upsert_pick_values, upsert_fantasycalc_values
 from config.settings import NFL_SEASON, PIPELINE_FORMATS
 
 logger = logging.getLogger(__name__)
@@ -111,3 +113,15 @@ def run_pipeline(formats: list = None) -> None:
             pick_values.append(pv)
         upsert_pick_values(pick_values)
         logger.info(f"Upserted {len(pick_values)} pick values for {fmt}.")
+
+    for fmt in formats:
+        num_qbs = 1 if fmt == "1QB" else 2
+        logger.info(f"Fetching FantasyCalc values ({fmt})...")
+        fc_raw = fetch_fantasycalc_values(is_dynasty=True, num_qbs=num_qbs, num_teams=12, ppr=1)
+        fc_norm = normalize_fantasycalc_values(fc_raw)
+        fc_values = [
+            FantasyCalcValue(player_id=sid, format=fmt, computed_at=computed_at, **d)
+            for sid, d in fc_norm.items()
+        ]
+        upsert_fantasycalc_values(fc_values)
+        logger.info(f"Upserted {len(fc_values)} FantasyCalc values for {fmt}.")
