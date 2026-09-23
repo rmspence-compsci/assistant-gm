@@ -17,7 +17,7 @@ ANTHROPIC_API_KEY: str = _key
 ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
 CACHE_TTL_SECONDS: int = 3600
 PLAYER_CACHE_TTL_SECONDS: int = 604800
-NFL_SEASON: str = "2025"
+NFL_SEASON: str = "2026"
 FINETUNE_LOG_PATH: Path = _ROOT / "data" / "finetune" / "qa_log.jsonl"
 try:
     import streamlit as st

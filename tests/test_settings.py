@@ -18,7 +18,7 @@ def test_settings_has_expected_constants(monkeypatch):
     assert s.ANTHROPIC_MODEL == "claude-sonnet-4-6"
     assert s.CACHE_TTL_SECONDS == 3600
     assert s.PLAYER_CACHE_TTL_SECONDS == 604800
-    assert s.NFL_SEASON == "2025"
+    assert s.NFL_SEASON == "2026"
 
 
 def test_settings_raises_on_missing_api_key(monkeypatch):
