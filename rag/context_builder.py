@@ -90,4 +90,31 @@ def build_context(data: dict) -> str:
             lines.append(f"  [{t.type}] {team_str}: {detail}")
         parts.append("\n".join(lines))
 
+    # Valuation data (TRADE questions only — top 30 players by value)
+    player_values = data.get("player_values")
+    if player_values:
+        fmt = data.get("valuation_format", "1QB")
+        lines = [f"DYNASTY TRADE VALUES ({fmt}, scale 0-10000):"]
+        sorted_vals = sorted(player_values.values(), key=lambda v: v.value, reverse=True)[:30]
+        all_players = data.get("players", {})
+        for pv in sorted_vals:
+            player = all_players.get(pv.player_id)
+            name = player.full_name if player and hasattr(player, "full_name") else pv.player_id
+            lines.append(f"  {name}: {pv.value}")
+        parts.append("\n".join(lines))
+
+    # FantasyCalc market consensus (TRADE questions only — top 30 players by value)
+    fc_values = data.get("fantasycalc_values")
+    if fc_values:
+        fmt = data.get("valuation_format", "1QB")
+        lines = [f"MARKET CONSENSUS (FantasyCalc, {fmt}, community trade-value scale — not comparable to the 0-10000 scale above):"]
+        sorted_fc = sorted(fc_values.values(), key=lambda v: v.value, reverse=True)[:30]
+        all_players = data.get("players", {})
+        for fv in sorted_fc:
+            player = all_players.get(fv.player_id)
+            name = player.full_name if player and hasattr(player, "full_name") else fv.player_id
+            trend = f", trend {'+' if fv.trend_30day >= 0 else ''}{fv.trend_30day}/30d" if fv.trend_30day is not None else ""
+            lines.append(f"  {name}: {fv.value} [rank #{fv.overall_rank}{trend}]")
+        parts.append("\n".join(lines))
+
     return "\n".join(parts) if parts else "No league data available."
